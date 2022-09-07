@@ -1,0 +1,314 @@
+<?php
+ini_set('error_reporting', E_ERROR);
+ini_set('max_execution_time', 600);
+define("SEC_KEY", "KiNDaNG!");
+define("HASH_KEY", "1pn3tM4y0r4");
+define("URL_TRANS", "https://mposdrc.clickmayora.com/mayora_trans/xml.php");
+//define("URL_TRANS", "http://mposdrc.clickmayora.com/mayora_trans/xml.php");
+//define("URL_TRANS", "http://10.100.2.88/mayora_trans/xml.php");
+//define("SEC_KEY", "r0yKi!?!");
+//define("SEC_KEY", "MYR!PN3T");  //mpos drc
+//define("HASH_KEY", "1pn3tPuls4");
+// include(dirname(__FILE__) . "/inc.folder/function.php");
+
+$userPassword = "2F3K8Y7C";//2F3K8Y7C
+//$product_id = "PAMJKT01";
+$product_id = "P212210PU0050";
+
+$transactionReference = date('YmdHis');
+$userID = "IBCHANNE1705";
+$timestamp = "20180203235959012";
+//$subscriber = "088810000004";
+$subscriber = "0812100001";
+$processingCode='381000';
+
+
+$key1 = "MYR!PN3T12345678";
+$key2 = $key1;
+
+// function encryptText($plainText, $key) {
+//     $keyData = "\xA2\x15\x37\x08\xCA\x62\xC1\xD2\xF7\xF1\x93\xDF\xD2\x15\x4F\x79\x06\x67\x7A\x82\x94\x16\x32\x95";
+//     $padded = pkcs5_pad($plainText, mcrypt_get_block_size("tripledes", "cbc"));
+//     $encText = mcrypt_encrypt("tripledes", $keyData, $padded, "cbc", $key);
+//     return base64_encode($encText);
+// }
+
+function encryptText($plainText, $key) {
+  $keyData = "\xA2\x15\x37\x08\xCA\x62\xC1\xD2\xF7\xF1\x93\xDF\xD2\x15\x4F\x79\x06\x67\x7A\x82\x94\x16\x32\x95";
+  $encText = openssl_encrypt($plainText, "des-ede3", $keyData, OPENSSL_RAW_DATA, $key);
+  return base64_encode($encText);
+}
+
+function decryptText($encryptText, $key) {
+  $keyData = "\xA2\x15\x37\x08\xCA\x62\xC1\xD2\xF7\xF1\x93\xDF\xD2\x15\x4F\x79\x06\x67\x7A\x82\x94\x16\x32\x95";
+  $cipherText = base64_decode($encryptText);
+  $decText = openssl_decrypt($cipherText, "des-ede3", $keyData, OPENSSL_RAW_DATA, $key);
+  return $decText;
+}
+// function decryptText($encryptText, $key) {
+//     $keyData = "\xA2\x15\x37\x08\xCA\x62\xC1\xD2\xF7\xF1\x93\xDF\xD2\x15\x4F\x79\x06\x67\x7A\x82\x94\x16\x32\x95";
+//     $cipherText = base64_decode($encryptText);
+//     $res = mcrypt_decrypt("tripledes", $keyData, $cipherText, "cbc", $key);
+//     $resUnpadded = pkcs5_unpad($res);
+//     return $resUnpadded;
+// }
+
+function pkcs5_pad($text, $blocksize) {
+    $pad = $blocksize - (strlen($text) % $blocksize);
+    return $text . str_repeat(chr($pad), $pad);
+}
+
+function pkcs5_unpad($text) {
+    $pad = ord($text{strlen($text) - 1});
+    if ($pad > strlen($text)) {
+        return false;
+    }
+
+    if (strspn($text, chr($pad), strlen($text) - $pad) != $pad) {
+        return false;
+    }
+    return substr($text, 0, -1 * $pad);
+}
+
+// function encryptOrDecrypt($text,$MASTERKEY, $method) {
+//      $td = mcrypt_module_open(MCRYPT_RIJNDAEL_128, '', MCRYPT_MODE_CBC, '');
+//      $iv = $MASTERKEY;
+//      mcrypt_generic_init($td, $MASTERKEY, $iv);
+//      $block = mcrypt_get_block_size(MCRYPT_RIJNDAEL_128, MCRYPT_MODE_CBC);
+//      $pad = $block - (strlen($text) % $block);
+//      $text .= str_repeat(chr($pad), $pad);
+//      if ($method == 'en'){
+//          $return_value = base64_encode(mcrypt_generic($td, $text));
+//      }else{
+//          $return_value = @mdecrypt_generic($td, base64_decode($text));
+//          $return_value = strippadding($return_value);
+//      }
+//      mcrypt_generic_deinit($td);
+//      mcrypt_module_close($td);
+//      return $return_value;
+// }
+function encryptOrDecrypt($text,$MASTERKEY, $method) {
+  $iv = $MASTERKEY;
+  if($method == 'en') {
+     $enc = openssl_encrypt($text, 'aes-128-cbc', $MASTERKEY, OPENSSL_RAW_DATA, $iv);
+     $return_value = base64_encode($enc);
+  } else {
+     $dec = openssl_decrypt(base64_decode($text), 'aes-128-cbc',$MASTERKEY, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING, $iv);
+     $return_value = strippadding($dec);
+  }
+  return trim($return_value);
+ }
+
+function strippadding($string) {
+        $slast = ord(substr($string, -1));
+        $slastc = chr($slast);
+        $pcheck = substr($string, -$slast);
+        if (@preg_match("/$slastc{" . $slast . "}/", $string)) {
+            $string = substr($string, 0, strlen($string) - $slast);
+            return $string;
+        } else {
+            return false;
+        }
+}
+
+//md5($subscriberNumber . $transactionType . $productctID . $time . $userID . $transactionReference . sha1($userPassword));
+if(isset($_POST['SubmitButton3'])){ //check if form was submitted
+  $method = $_POST['method']; 
+  $userID = $_POST['user'];
+  $command = $_POST['command'];
+  $transactionReference = $_POST['reference'];
+  $userPassword = $_POST['password'];
+  $trx_from = $_POST['from'];
+  $trx_type = $_POST['type'];
+  $subscriber = $_POST['subscriber'];
+  $topupamount = $_POST['topupamount'];
+  $processingCode = $_POST['processingCode'];
+  $product_id = $_POST['product_id'];
+  $timestamp = $_POST['timestamp'];
+  $buying_option= $_POST['buyingOption'];
+  $val01 = $val02 = $val03 = $val04 = $val05 = $val06 = $val07 =  "";
+  if($trx_type == "01"){
+    $val01 = "selected";
+  }else if($trx_type == "02"){
+    $val02 = "selected";
+  }else if($trx_type == "03"){
+    $val03 = "selected";
+  }else if($trx_type == "04"){
+    $val04 = "selected";
+  }else if($trx_type == "05"){
+    $val05 = "selected";
+  }else if($trx_type == "06"){
+    $val06 = "selected";
+  }else if($trx_type == "07"){
+    $val07 = "selected";
+  }else if($trx_type == "08"){
+    $val08 = "selected";
+  }else if($trx_type == "09"){
+    $val09 ="selected";
+  }
+  //md5($subscriberNumber . $transactionType . $productID . $time . $userID . $transactionReference . sha1($userPassword));
+    if ($method == "POST") {
+        $trueKey = hash("sha256", $command . $userID . HASH_KEY . $transactionReference . $method);
+        
+    } else if ($method == "PUT") {
+        $trueKey = hash("sha256", $userPassword . $command . $userID . HASH_KEY . $transactionReference . $method);
+    }
+    if($trx_from == "API"){
+        $trueKey = hash("md5", $subscriber . $trx_type . $product_id . $timestamp . $userID . $transactionReference . sha1($userPassword));
+        //$trueKey = hash("md5", $subscriber . $trx_type . $product_id . $timestamp . $userID . $transactionReference ."M@yora!". $userPassword);
+    }
+    $message3= "";
+    //$message3 .= " pass=".$userPassword." , command=".$command." , user=".$userID." , hash_key=".HASH_KEY." , reference = ".$transactionReference." , method = ".$method."\r\n";
+    $message3 .= trim($trueKey);
+}
+
+
+if(isset($_POST['SubmitButton_req'])){
+  $trueKey = "";
+  $method = $_POST['method']; 
+  $userID = $_POST['user'];
+  $command = $_POST['command'];
+  $transactionReference = date('YmdHis');
+  $userPassword = $_POST['password'];
+  $trx_from = $_POST['from'];
+  $trx_type = $_POST['type'];
+  $subscriber = $_POST['subscriber'];
+  $topupamount= $_POST['topupamount'];
+  $processingCode = $_POST['processingCode'];
+  $product_id = $_POST['product_id'];
+  $timestamp = $_POST['timestamp'];
+  $ftcore = $_POST['ftcore'];
+  $month = $_POST['month'];
+  $inq_num = $_POST['inq_num'];
+  $buying_option= $_POST['buyingOption'];
+  $val01 = $val02 = $val03 = $val04 = $val05= $val06= $val07= $val08=  "";
+  if($trx_type == "01"){
+    $val01 = "selected";
+  }else if($trx_type == "02"){
+    $val02 = "selected";
+  }else if($trx_type == "03"){
+    $val03 = "selected";
+  }else if($trx_type == "04"){
+    $val04 = "selected";
+  }else if($trx_type == "05"){
+    $val05= "selected";
+  }else if($trx_type == "06"){
+    $val06= "selected";
+  }else if($trx_type == "07"){
+    $val07= "selected";
+  }else if($trx_type == "08"){
+    $val08= "selected";
+  }else if($trx_type == "09"){
+    $val09= "selected";
+  }
+  if($trx_from == "API"){
+        $trueKey = hash("md5", $subscriber . $trx_type . $product_id . $timestamp . $userID . $transactionReference . sha1($userPassword));
+        //$trueKey = hash("md5", $subscriber . $trx_type . $product_id . $timestamp . $userID . $transactionReference ."M@yora!". $userPassword);
+    }
+
+    $tagft = "";
+    if($ftcore != ""){
+        $tagft = "<ftCore>".$ftcore."</ftCore>\r\n";
+    }
+$request = "
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<mayora>
+   <userName>".$userID."</userName>
+   <signature>".$trueKey."</signature>
+   <productCode>".$product_id."</productCode>
+   <transactionType>".$trx_type."</transactionType>
+   <billNumber>".$subscriber."</billNumber>
+   <buyingOption>".$buying_option."</buyingOption>
+   <processingCode>".$processingCode."</processingCode>
+   <month>".$month."</month>
+   <topupAmount>".$topupamount."</topupAmount>
+   <transactionID>".$transactionReference."</transactionID>".$tagft."
+   <timeStamp>".$timestamp."</timeStamp>";
+   if(trim($inq_num) != ""){
+    $request .= "<referenceNumber>".$inq_num."</referenceNumber>";
+  }
+$request .= "</mayora>";
+    $ori_req = $request;
+
+    $request = encryptOrDecrypt($request, $key1,'en');
+
+    $headers[] = "Accept: /";
+    $headers[] = "Content-Type: text/xml";
+    $headers[] = "Connection: close";
+	
+    $cp = curl_init();
+    curl_setopt($cp, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($cp, CURLOPT_HEADER, 0);
+    curl_setopt($cp, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($cp, CURLOPT_SSL_VERIFYPEER, 0);
+    curl_setopt($cp, CURLOPT_POSTFIELDS, $request);
+    curl_setopt($cp, CURLOPT_TIMEOUT,6000);
+    curl_setopt($cp, CURLOPT_URL, URL_TRANS);
+    $response = curl_exec($cp);
+
+    
+    if($errno = curl_errno($cp) || trim($response) == "" ) {
+        $response = "No response !";
+    }
+    if(!$response){
+        $response = "No response !";
+    }else{
+        $response = encryptOrDecrypt($response,$key1,'de');
+    }
+    
+    curl_close($cp);
+    
+    
+    $message3 = trim($response);
+    $message4 = trim($ori_req);
+
+}
+
+
+
+
+?>
+
+<!--{"device":"","key":"494272db2c451cfdec38fa077fcd9c083f0a218371c72b48c047a73ee1d76a16","price":"5050","product":"P111310PU0005","reference":"20171117144227","subscriber":"087881648563","user":"FERRY000031000","version":"1.0.1"}  -->
+
+<html>
+<body>    
+
+    <hr>
+    <form action="" method="post">
+    <table>
+        <tr><td>Trx From</td><td><select name="from"><option value="API">API</option><option value="MPOS">MPOS</option></select></td></tr>
+        <tr><td>Trx Type</td><td><select name="type" <?php echo $trx_type; ?> ><option value="01" <?php echo $val01; ?> >Pembelian</option><option value="02" <?php echo $val02; ?> >Inquiry</option><option value="03" <?php echo $val03; ?> >Payment</option><option value="04" <?php echo $val04; ?> >Advice</option><option value="05" <?php echo $val05; ?> >Reversal</option><option value="06" <?php echo $val06; ?> >Advice1</option><option value="07" <?php echo $val07; ?> >Advice2</option><option value="08" <?php echo $val08; ?> >Reversal1</option><option value="09" <?php echo $val09; ?> >Reversal2</option><option value="11">Inquiry Produk</option></select></td></tr>
+        <tr><td>Method</td><td><select name="method"><option value="POST">POST</option><option value="PUT">PUT</option></select></td></tr>
+        <tr><td>User</td><td><input type="text" size="100" value='<?php echo $userID; ?>' name="user"/><br></td></tr>
+        <tr><td>Reference</td><td><input type="text" size="100" value='<?php echo $transactionReference; ?>' name="reference"/><br></td></tr>
+        <tr><td>Product ID</td><td><input type="text" size="100" value='<?php echo $product_id; ?>' name="product_id"/><br></td></tr>
+        <tr><td>Timestamp</td><td><input type="text" size="100" value='<?php echo $timestamp; ?>' name="timestamp"/><br></td></tr>
+        <tr><td>Subscriber</td><td><input type="text" size="100" value='<?php echo $subscriber; ?>' name="subscriber"/><br></td></tr>
+        <tr><td>Topupamount</td><td><input type="text" size="100" value='<?php echo $topupamount; ?>' name="topupamount"/><br></td></tr>
+         <tr><td>Processing_Code</td><td><input type="text" size="100" value='<?php echo $processingCode; ?>' name="processingCode"/><br></td></tr>
+        <tr><td>FT core</td><td><input type="text" size="100" value='<?php echo $ftcore; ?>' name="ftcore"/><br></td></tr>
+        <tr><td>Command</td><td><input type="text" size="100" value='<?php echo $command; ?>' name="command"/><br></td></tr>
+        <tr><td>Month</td><td><input type="text" size="2" value='<?php echo $month; ?>' name="month"/><br></td></tr>
+        <tr><td>Inquiry Num</td><td><input type="text" size="100" value='<?php echo $inq_num; ?>' name="inq_num"/><br></td></tr>
+        <tr><td>BuyingOption</td><td><input type="text" size="2" value='<?php echo $buying_option; ?>' name="buyingOption"/><br></td></tr>
+        <tr><td>Password</td><td><input type="text" size="100" value='<?php echo $userPassword; ?>' name="password"/><br></td></tr>
+        <tr><td>Input</td>
+            <td>
+                <textarea rows="10" cols="80">
+                    <?php echo $message4; ?>
+                </textarea> 
+            </td></tr>
+        <hr>
+        <tr><td>Output</td>
+            <td>
+                <textarea rows="10" cols="80">
+                    <?php echo $message3; ?>
+                </textarea> 
+            </td></tr>
+    </table>
+  <input type="submit" value="GET KEY" style="cursor: pointer" name="SubmitButton3"/>
+  <input type="submit" value="SEND" style="cursor: pointer" name="SubmitButton_req"/>
+</form>
+</body>
+</html>
